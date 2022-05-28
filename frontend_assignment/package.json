@@ -17,7 +17,10 @@
         "lint": "next lint"
     },
     "dependencies": {
+        "@emotion/react": "^11.9.0",
+        "@emotion/styled": "^11.8.1",
         "@metamask/detect-provider": "^1.2.0",
+        "@mui/material": "^5.8.1",
         "@zk-kit/identity": "^1.4.1",
         "@zk-kit/protocols": "^1.11.0",
         "assert": "^2.0.0",
