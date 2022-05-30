@@ -39,6 +39,7 @@ interface IGreeterFormValues {
   city: string;
   continent: string;
   email: string;
+  greeting: string;
 }
 
 // Form Validation
@@ -48,6 +49,7 @@ const initialValues: IGreeterFormValues = {
   city: "",
   continent: "",
   email: "",
+  greeting: "",
 };
 const validationSchema = yup.object({
   firstName: yup
@@ -77,6 +79,12 @@ const validationSchema = yup.object({
     .trim()
     .email("Please enter a valid email")
     .required("Email is required"),
+  greeting: yup
+    .string()
+    .trim()
+    .min(1, "Please enter a valid greeting")
+    .max(31, "Greeting is too long") // must be 32 bytes max
+    .required("Greeting is required"),
 });
 
 const GreeterForm = (props: GreeterFormProps): JSX.Element => {
@@ -90,7 +98,8 @@ const GreeterForm = (props: GreeterFormProps): JSX.Element => {
       // Log out the form data
       console.log(values);
       // Invoke the callback if one is passed in
-      if (onSubmit) await onSubmit();
+      if (onSubmit) await onSubmit(values.greeting);
+      formikBag.resetForm();
     } catch (e: any) {
       console.error(e);
     }
@@ -111,10 +120,7 @@ const GreeterForm = (props: GreeterFormProps): JSX.Element => {
     validationSchema,
     onSubmit: (values, formikBag) => {
       formikBag.setSubmitting(true);
-      // Mimic network request
-      setTimeout(() => {
-        handleSubmitLogger(values, formikBag);
-      }, 3000);
+      handleSubmitLogger(values, formikBag);
     },
   });
 
@@ -215,6 +221,19 @@ const GreeterForm = (props: GreeterFormProps): JSX.Element => {
               margin="normal"
               error={touched.email && Boolean(errors.email)}
               helperText={touched.email && errors.email}
+              fullWidth
+            />
+            <TextField
+              name="greeting"
+              variant="outlined"
+              label="Greeting"
+              placeholder="Say something to the blockchain!"
+              value={values.greeting}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              margin="normal"
+              error={touched.greeting && Boolean(errors.greeting)}
+              helperText={touched.greeting && errors.greeting}
               fullWidth
             />
             <Button

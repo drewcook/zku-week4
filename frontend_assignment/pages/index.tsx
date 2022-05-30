@@ -1,75 +1,91 @@
 import detectEthereumProvider from "@metamask/detect-provider";
 import { Strategy, ZkIdentity } from "@zk-kit/identity";
 import { generateMerkleProof, Semaphore } from "@zk-kit/protocols";
-import { providers } from "ethers";
 import Head from "next/head";
-import React from "react";
+import React, { useState } from "react";
+import { Contract, providers } from "ethers";
+import Greeter from "artifacts/contracts/Greeters.sol/Greeters.json";
 import styles from "../styles/Home.module.css";
 import GreeterForm from "../components/GreeterForm";
+import GreetingText from "../components/GreetingText";
 
 export default function Home() {
-  const [logs, setLogs] = React.useState("Connect your wallet and greet!");
+  const [logs, setLogs] = useState("Connect your wallet and greet!");
 
-  async function greet() {
-    setLogs("Creating your Semaphore identity...");
+  // Set up a shared contract instance to use throughout the UI
+  const instance = new Contract(
+    "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0", // local contract address
+    Greeter.abi
+  );
+  const provider = new providers.JsonRpcProvider("http://localhost:8545");
+  const contract = instance.connect(provider.getSigner());
 
-    const provider = (await detectEthereumProvider()) as any;
+  async function greet(greeting: string = "Hello World") {
+    try {
+      setLogs("Creating your Semaphore identity...");
 
-    await provider.request({ method: "eth_requestAccounts" });
+      const provider = (await detectEthereumProvider()) as any;
 
-    const ethersProvider = new providers.Web3Provider(provider);
-    const signer = ethersProvider.getSigner();
-    const message = await signer.signMessage(
-      "Sign this message to create your identity!"
-    );
+      await provider.request({ method: "eth_requestAccounts" });
 
-    const identity = new ZkIdentity(Strategy.MESSAGE, message);
-    const identityCommitment = identity.genIdentityCommitment();
-    const identityCommitments = await (
-      await fetch("./identityCommitments.json")
-    ).json();
+      const ethersProvider = new providers.Web3Provider(provider);
+      const signer = ethersProvider.getSigner();
+      const message = await signer.signMessage(
+        "Sign this message to create your identity!"
+      );
 
-    const merkleProof = generateMerkleProof(
-      20,
-      BigInt(0),
-      identityCommitments,
-      identityCommitment
-    );
+      const identity = new ZkIdentity(Strategy.MESSAGE, message);
+      const identityCommitment = identity.genIdentityCommitment();
+      const identityCommitments = await (
+        await fetch("./identityCommitments.json")
+      ).json();
 
-    setLogs("Creating your Semaphore proof...");
+      const merkleProof = generateMerkleProof(
+        20,
+        BigInt(0),
+        identityCommitments,
+        identityCommitment
+      );
 
-    const greeting = "Hello world";
+      setLogs("Creating your Semaphore proof...");
 
-    const witness = Semaphore.genWitness(
-      identity.getTrapdoor(),
-      identity.getNullifier(),
-      merkleProof,
-      merkleProof.root,
-      greeting
-    );
+      const witness = Semaphore.genWitness(
+        identity.getTrapdoor(),
+        identity.getNullifier(),
+        merkleProof,
+        merkleProof.root,
+        greeting
+      );
 
-    const { proof, publicSignals } = await Semaphore.genProof(
-      witness,
-      "./semaphore.wasm",
-      "./semaphore_final.zkey"
-    );
-    const solidityProof = Semaphore.packToSolidityProof(proof);
+      const { proof, publicSignals } = await Semaphore.genProof(
+        witness,
+        "./semaphore.wasm",
+        "./semaphore_final.zkey"
+      );
+      const solidityProof = Semaphore.packToSolidityProof(proof);
 
-    const response = await fetch("/api/greet", {
-      method: "POST",
-      body: JSON.stringify({
-        greeting,
-        nullifierHash: publicSignals.nullifierHash,
-        solidityProof: solidityProof,
-      }),
-    });
+      const response = await fetch("/api/greet", {
+        method: "POST",
+        body: JSON.stringify({
+          greeting,
+          nullifierHash: publicSignals.nullifierHash,
+          solidityProof: solidityProof,
+        }),
+      });
+      const data = await response.json();
 
-    if (response.status === 500) {
-      const errorMessage = await response.text();
-
-      setLogs(errorMessage);
-    } else {
-      setLogs("Your anonymous greeting is onchain :)");
+      if (response.status === 500) {
+        const errorMessage = await response.text();
+        console.error(errorMessage);
+        setLogs("Something went wrong, check the console");
+      } else {
+        // Display hash
+        const { transactionHash } = data;
+        setLogs(`Your anonymous onchain greeting tx - ${transactionHash}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      setLogs("Something went wrong, check the console");
     }
   }
 
@@ -91,6 +107,7 @@ export default function Home() {
           A simple Next.js/Hardhat privacy application with Semaphore.
         </p>
 
+        <GreetingText contract={contract} />
         <GreeterForm onSubmit={greet} />
 
         <div className={styles.logs}>{logs}</div>
