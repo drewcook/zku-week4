@@ -21,7 +21,6 @@ const GreetingText = ({ contract }: GreetingTextProps): JSX.Element => {
   // Update the greeting text display with each new event's value
   const subscribeToGreeting = async () => {
     contract.on(contract.filters.NewGreeting(), (_greeting: string) => {
-      console.log("NEW GREETING", utils.parseBytes32String(_greeting));
       setGreeting(utils.parseBytes32String(_greeting));
     });
   };
